@@ -33,16 +33,12 @@ wrangler.toml     # 绑定与变量配置
 
 ## 配置:变量与密钥
 
-`wrangler.toml` 中 `[vars]` 填非机密项:`R2_ACCOUNT_ID`、`R2_BUCKET`,以及 `[[r2_buckets]]` 的 `bucket_name`。
+线上 Worker 把 4 个值全部存为 **secret**:`R2_ACCOUNT_ID`、`R2_BUCKET`、`R2_ACCESS_KEY_ID`、`R2_SECRET_ACCESS_KEY`。
+因此 `wrangler.toml` **不要**用 `[vars]` 定义同名项,否则 deploy 会用明文覆盖线上 secret。
 
-两个**机密**绝不写进文件,用命令注入到线上:
-
-```bash
-wrangler secret put R2_ACCESS_KEY_ID
-wrangler secret put R2_SECRET_ACCESS_KEY
-```
-
-本地开发:复制 `.dev.vars.example` 为 `.dev.vars`,填入四个值(`.dev.vars` 已被 git 忽略)。
+- 本地开发:复制 `.dev.vars.example` 为 `.dev.vars` 并填入这 4 个值(已被 git 忽略)。
+- 线上修改某个值:`npx wrangler secret put <NAME>`。
+- 顶层 `account_id` 与 `[[r2_buckets]].bucket_name`(均为 `inksportal` 账号下)已在 `wrangler.toml` 配好。
 
 ## 本地开发与部署
 
