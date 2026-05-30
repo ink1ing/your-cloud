@@ -1,0 +1,22 @@
+name = "inksportal"
+main = "src/index.js"
+compatibility_date = "2024-11-01"
+
+# 前端静态资源(原 env.ASSETS 绑定)。把页面文件放到 ./public 下。
+[assets]
+directory = "./public"
+binding = "ASSETS"
+
+# R2 桶绑定(代码里通过 env.R2_STORAGE 直接读写)
+[[r2_buckets]]
+binding = "R2_STORAGE"
+bucket_name = "REPLACE_WITH_YOUR_BUCKET_NAME"
+
+# 非机密变量。account_id 与桶名用于 S3 兼容预签名 URL。
+[vars]
+R2_ACCOUNT_ID = "REPLACE_WITH_YOUR_ACCOUNT_ID"
+R2_BUCKET = "REPLACE_WITH_YOUR_BUCKET_NAME"
+
+# 机密(不要写在这里!用 wrangler secret put 注入):
+#   R2_ACCESS_KEY_ID
+#   R2_SECRET_ACCESS_KEY

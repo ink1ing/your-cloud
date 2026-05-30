@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Silas Portal</title>
+  <link rel="icon"
+    href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII=">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Oxanium:wght@200;300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      font-family: 'Oxanium', monospace;
+      background-color: #000000;
+      color: #ffffff;
+      color-scheme: dark;
+    }
+
+    body {
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      min-height: 100vh;
+      background: #000000;
+    }
+
+    main {
+      width: min(960px, 92vw);
+      padding: 3.25rem 1.75rem 4rem;
+      box-sizing: border-box;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1rem;
+      margin-bottom: 1.75rem;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.7rem, 2.2vw, 2.3rem);
+      font-weight: 700;
+      color: #ffffff;
+    }
+
+    .muted {
+      font-size: 0.95rem;
+      color: #888888;
+      font-weight: 600;
+    }
+
+    .panel {
+      background: #000000;
+      border: 1px solid #333333;
+      border-radius: 16px;
+      padding: 1.75rem;
+      margin-bottom: 1.75rem;
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8);
+    }
+
+    .language-toggle {
+      display: inline-flex;
+      border: 1px solid #333333;
+      border-radius: 999px;
+      overflow: hidden;
+    }
+
+    .language-toggle button {
+      padding: 0.45rem 0.95rem;
+      background: transparent;
+      border: none;
+      color: #ffffff;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.15s ease;
+    }
+
+    .language-toggle button.active {
+      background: #333333;
+      color: #ffffff;
+    }
+
+    .dropzone {
+      position: relative;
+      border: 2px dashed #666666;
+      border-radius: 10px;
+      padding: 0.75rem 0.9rem;
+      text-align: center;
+      transition: border-color 0.2s ease, background 0.2s ease, transform 0.2s ease;
+      background: #000000;
+      font-weight: 600;
+      color: #ffffff;
+      box-sizing: border-box;
+      height: 120px;
+    }
+
+    .dropzone.hover {
+      border-color: #999999;
+      background: #111111;
+      transform: translateY(-2px);
+    }
+
+    .dropzone strong {
+      display: block;
+      font-size: 1.1rem;
+      color: #ffffff;
+      margin-bottom: 0.35rem;
+      font-weight: 700;
+    }
+
+    .dropzone span {
+      color: #888888;
+      font-size: 0.95rem;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .hidden-input {
+      display: none;
+    }
+
+    label {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 0.45rem;
+      color: #ffffff;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      padding: 0.7rem 0.85rem;
+      border-radius: 10px;
+      border: 1px solid #333333;
+      background: #000000;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 600;
+      box-sizing: border-box;
+    }
+
+    input[type="text"]:focus {
+      outline: none;
+      border-color: #666666;
+    }
+
+    input[type="text"]::placeholder {
+      color: #666666;
+    }
+
+    /* 密码相关样式 */
+
+    .emoji-password-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .emoji-password-modal.show {
+      display: flex;
+    }
+
+    .emoji-password-content {
+      background: #111111;
+      border: 1px solid #333333;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 90vw;
+      text-align: center;
+      position: relative;
+    }
+
+    .emoji-password {
+      font-size: 1.8rem;
+      line-height: 2;
+      margin: 1rem 0;
+      padding: 1rem;
+      background: #000000;
+      border: 1px solid #333333;
+      border-radius: 10px;
+      word-break: break-all;
+      user-select: all;
+    }
+
+    .copy-btn {
+      margin: 0.5rem 0.25rem;
+    }
+
+    .close-btn {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: none;
+      border: none;
+      color: #888888;
+      font-size: 1.5rem;
+      cursor: pointer;
+      padding: 0;
+      width: 2rem;
+      height: 2rem;
+    }
+
+    /* 文本预览模态框样式 */
+    .text-preview-modal {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0, 0, 0, 0.8);
+      z-index: 1000;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .text-preview-modal.show {
+      display: flex;
+    }
+
+    .text-preview-content {
+      background: #111111;
+      border: 1px solid #333333;
+      border-radius: 16px;
+      padding: 2rem;
+      max-width: 800px;
+      width: 90vw;
+      max-height: 80vh;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .text-preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 1px solid #333333;
+    }
+
+    .text-preview-header h3 {
+      margin: 0;
+      color: #ffffff;
+      font-size: 1.2rem;
+    }
+
+    .text-preview-body {
+      flex: 1;
+      overflow-y: auto;
+      background: #000000;
+      border: 1px solid #333333;
+      border-radius: 10px;
+      padding: 1.5rem;
+      font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+      font-size: 0.9rem;
+      line-height: 1.6;
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: #ffffff;
+    }
+
+    .text-preview-footer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-top: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid #333333;
+      font-size: 0.85rem;
+      color: #888888;
+    }
+
+    textarea {
+      width: 100%;
+      padding: 0.75rem 0.9rem;
+      border-radius: 10px;
+      border: 2px solid #333333;
+      background: #000000;
+      color: #ffffff;
+      font-size: 1rem;
+      font-weight: 600;
+      line-height: 1.55;
+      box-sizing: border-box;
+    }
+
+    textarea:focus {
+      outline: none;
+      border-color: #666666;
+    }
+
+    textarea::placeholder {
+      color: #666666;
+    }
+
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 0.75rem 1.6rem;
+      font-size: 0.95rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+
+    button.primary {
+      background: #333333;
+      color: #ffffff;
+    }
+
+    button.secondary {
+      background: #222222;
+      color: #ffffff;
+    }
+
+    button.danger {
+      background: #222222;
+      color: #ffffff;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      transform: none;
+      box-shadow: none;
+    }
+
+    button:not(:disabled):hover {
+      transform: translateY(-1px);
+      box-shadow: 0 14px 32px rgba(56, 139, 253, 0.25);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+      overflow: hidden;
+    }
+
+    thead {
+      background: #111111;
+    }
+
+    th,
+    td {
+      text-align: left;
+      padding: 0.9rem 0.75rem;
+      border-bottom: 1px solid #333333;
+      font-weight: 600;
+    }
+
+    th {
+      text-transform: uppercase;
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      color: #888888;
+    }
+
+    tbody tr:hover {
+      background: #111111;
+    }
+
+    .table-empty {
+      text-align: center;
+      padding: 2.2rem 1rem;
+      color: #888888;
+      font-weight: 600;
+    }
+
+    /* 上传区域左右布局 */
+    .upload-row {
+      display: flex;
+      gap: 1.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .upload-row>.panel {
+      flex: 1;
+      margin-bottom: 0;
+      min-width: 0;
+    }
+
+    @media (max-width: 900px) {
+      .upload-row {
+        flex-direction: column;
+      }
+
+      .upload-row>.panel {
+        flex: none;
+      }
+    }
+
+    @media (max-width: 720px) {
+      main {
+        padding: 2.5rem 1.25rem 3rem;
+      }
+
+      .panel {
+        padding: 1.35rem;
+      }
+
+      table {
+        font-size: 0.88rem;
+      }
+
+      th,
+      td {
+        padding: 0.75rem 0.6rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <div>
+        <h1 data-i18n="title">Silas Portal</h1>
+      </div>
+      <div class="language-toggle" role="group" aria-label="Language">
+        <button type="button" data-lang="en" class="active">EN</button>
+        <button type="button" data-lang="zh">中文</button>
+      </div>
+    </header>
+
+    <div class="upload-row">
+      <section class="panel" aria-label="Upload" style="padding-bottom: 1rem;">
+        <h2 style="margin:0 0 1rem 0; font-size:1.1rem; font-weight:700; color:#f0f6fc;" data-i18n="fileTitle">Upload
+          File</h2>
+
+        <div id="drop-zone" class="dropzone" role="button" tabindex="0"
+          style="display: flex; align-items: center; justify-content: center;">
+          <span data-i18n="dropSubtext">Drag or select files here</span>
+          <input class="hidden-input" type="file" id="file-input" />
+        </div>
+
+        <div class="actions" style="display: flex; gap: 0.75rem; align-items: flex-end;">
+          <div style="flex: 1;">
+            <label for="key-input" data-i18n="keyLabel">Filename</label>
+            <input type="text" id="key-input" autocomplete="off" />
+          </div>
+          <div style="flex: 1;">
+            <label for="password-input" data-i18n="passwordLabel">Key (optional)</label>
+            <input type="text" id="password-input" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+              autocomplete="off" />
+          </div>
+          <button id="upload-btn" class="primary" data-i18n="uploadBtn" style="white-space: nowrap;">Upload</button>
+        </div>
+      </section>
+
+      <section class="panel" aria-label="Text clipboard" style="padding-bottom: 1rem;">
+        <h2 style="margin:0 0 1rem 0; font-size:1.1rem; font-weight:700; color:#f0f6fc;" data-i18n="textTitle">Upload
+          Text</h2>
+
+        <div style="display:flex; flex-direction:column; gap:0.75rem;">
+          <div>
+            <textarea id="text-input" placeholder="Type or paste text here"
+              data-i18n-placeholder="textContentPlaceholder" style="height: 120px; resize: none;"></textarea>
+          </div>
+          <div style="display: flex; gap: 0.75rem; align-items: flex-end;">
+            <div style="flex: 1;">
+              <label for="text-key-input" data-i18n="textKeyLabel">Filename</label>
+              <input type="text" id="text-key-input" autocomplete="off" />
+            </div>
+            <div style="flex: 1;">
+              <label for="text-password-input" data-i18n="passwordLabel">Key (optional)</label>
+              <input type="text" id="text-password-input" maxlength="6" pattern="[0-9]*" inputmode="numeric"
+                autocomplete="off" />
+            </div>
+            <button id="save-text-btn" type="button" class="primary" data-i18n="uploadBtn"
+              style="white-space: nowrap;">Upload</button>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <section class="panel" aria-label="File list">
+      <div style="display:flex; justify-content: space-between; align-items: baseline; gap: 1rem; margin-bottom: 1rem;">
+        <h2 style="margin:0; font-size:1.25rem; font-weight:700; color:#f0f6fc;" data-i18n="listTitle">Current files
+        </h2>
+        <div style="display:flex; gap:1rem; align-items:baseline;">
+          <button id="list-refresh-btn" class="secondary" data-i18n="refreshBtn"
+            style="padding: 0.5rem 1rem; font-size: 0.85rem;">Refresh</button>
+          <span id="file-count" class="muted" data-i18n="fileCountEmpty">No files yet</span>
+          <span id="uptime" class="muted" title="Service uptime"></span>
+        </div>
+      </div>
+      <div style="overflow-x: auto;">
+        <table>
+          <thead>
+            <tr>
+              <th style="width:40%;" data-i18n="colName">Name</th>
+              <th style="width:15%;" data-i18n="colSize">Size</th>
+              <th style="width:25%;" data-i18n="colUpdated">Uploaded at</th>
+              <th style="width:20%; text-align:right;" data-i18n="colActions">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="file-table-body">
+            <tr>
+              <td colspan="4" class="table-empty" data-i18n="empty">No files uploaded yet.</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <p style="text-align: center; color: #666666; font-size: 0.75rem; margin: 2rem 0 1rem 0;">© 2025 Silas · <a
+        href="https://github.com/silas/inksportal" target="_blank"
+        style="color: #888888; text-decoration: none;">github.com/silas/inksportal</a></p>
+  </main>
+
+  <!-- 密码显示模态框 -->
+  <div id="emoji-password-modal" class="emoji-password-modal">
+    <div class="emoji-password-content">
+      <button class="close-btn" onclick="closeEmojiModal()">&times;</button>
+      <h3 data-i18n="emojiPasswordTitle">文件上传成功！</h3>
+      <p data-i18n="emojiPasswordSubtitle">请保存下面的密码，用于下载文件：</p>
+      <div id="emoji-password-display" class="emoji-password"></div>
+      <div>
+        <button class="secondary copy-btn" onclick="copyEmojiPassword()" data-i18n="copyPassword">复制密码</button>
+        <button class="primary copy-btn" onclick="closeEmojiModal()" data-i18n="understood">我已保存</button>
+      </div>
+      <p style="color: #888888; font-size: 0.9rem; margin-top: 1rem;" data-i18n="passwordWarning">
+        请务必保存此密码，丢失后将无法下载文件
+      </p>
+    </div>
+  </div>
+
+  <!-- 文本预览模态框 -->
+  <div id="text-preview-modal" class="text-preview-modal">
+    <div class="text-preview-content">
+      <button class="close-btn" onclick="closeTextPreviewModal()">&times;</button>
+      <div class="text-preview-header">
+        <h3 id="text-preview-title">📄 文本预览</h3>
+        <div>
+          <button class="secondary" onclick="copyTextContent()">复制内容</button>
+          <button class="primary" onclick="downloadFromPreview()" style="margin-left: 0.5rem;">下载文件</button>
+        </div>
+      </div>
+      <div class="text-preview-body" id="text-preview-content">
+        <!-- 文本内容将在这里显示 -->
+      </div>
+      <div class="text-preview-footer">
+        <span id="text-preview-info">大小: - | 修改时间: -</span>
+        <span id="text-preview-status"></span>
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="/app.js"></script>
+</body>
+
+</html>

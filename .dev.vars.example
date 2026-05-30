@@ -1,0 +1,6 @@
+# 复制为 .dev.vars(已被 .gitignore 忽略),填入真实值用于本地 wrangler dev。
+# 线上部署时改用: wrangler secret put R2_ACCESS_KEY_ID 等。
+R2_ACCOUNT_ID=""
+R2_BUCKET=""
+R2_ACCESS_KEY_ID=""
+R2_SECRET_ACCESS_KEY=""

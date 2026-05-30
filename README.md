@@ -1,0 +1,64 @@
+# InksPortal
+
+基于 Cloudflare Worker + R2 的轻量网盘。后端源码已从线上打包产物还原为可维护结构。
+
+## 结构
+
+```
+src/
+  index.js        # Worker 入口与所有 API 路由 + R2 S3 预签名(SigV4)
+  encryption.js   # 文件密码哈希/校验(SHA-256 + 固定盐)
+public/
+  index.html      # 前端页面(已从线上恢复,CSS 内联)
+  app.js          # 前端逻辑(已从线上恢复)
+wrangler.toml     # 绑定与变量配置
+.dev.vars.example # 本地开发变量模板(复制为 .dev.vars)
+```
+
+## API 路由(前缀 `/portal`)
+
+| 方法 | 路径 | 说明 |
+|---|---|---|
+| POST | `/signPut` | 生成上传用预签名 URL |
+| POST | `/signGet` | 生成下载用预签名 URL |
+| GET | `/list` | 列出对象(支持 prefix/limit/cursor) |
+| DELETE | `/delete` | 删除对象(需密码或确认) |
+| POST | `/text` | 保存文本到 `texts/`(可设 1-6 位数字密码) |
+| POST | `/proxy/upload` | 经 Worker 代理上传 |
+| GET | `/proxy/download` | 经 Worker 代理下载 |
+| GET | `/status` | 运行状态自检 |
+| POST | `/verify-password` | 校验文件密码 |
+| POST | `/preview-text` | 预览文本文件 |
+| POST | `/file-status` | 批量查询文件是否带密码 |
+
+## 配置:变量与密钥
+
+`wrangler.toml` 中 `[vars]` 填非机密项:`R2_ACCOUNT_ID`、`R2_BUCKET`,以及 `[[r2_buckets]]` 的 `bucket_name`。
+
+两个**机密**绝不写进文件,用命令注入到线上:
+
+```bash
+wrangler secret put R2_ACCESS_KEY_ID
+wrangler secret put R2_SECRET_ACCESS_KEY
+```
+
+本地开发:复制 `.dev.vars.example` 为 `.dev.vars`,填入四个值(`.dev.vars` 已被 git 忽略)。
+
+## 本地开发与部署
+
+```bash
+npm install
+npm run dev      # 本地 http://localhost:8787
+npm run deploy   # 部署到 Cloudflare
+```
+
+## 前端来源
+
+前端 `public/index.html` 与 `public/app.js` 已从线上 `https://portal.ink1ing.tech/` 取回。
+页面仅依赖外部 Google Fonts(Oxanium),API 调用使用根相对路径,本地 `wrangler dev` 与线上根域名均可直接联通。
+
+## 注意事项 / 已知点
+
+- 文件密码仅为 SHA-256 + 固定盐(`InksPortalEncryption2024`),属轻量访问控制,非强加密。
+- `/delete` 对无密码文件的确认逻辑较绕(还原自原产物),后续可重构为显式 `confirmed` 判断。
+- 还原时修正了 `/list` 响应 ETag 字符串末尾多余的 `}`。
