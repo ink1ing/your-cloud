@@ -94,6 +94,9 @@ async function handleSignPut(request, env) {
     return jsonError("`key` is required", 400);
   }
   key = ensureFileExtension(key, "bin");
+  if (await env.R2_STORAGE.head(key)) {
+    return jsonError("文件已存在,请改名或先删除", 409);
+  }
   const expires = normalizeExpiry(body?.expires);
   const contentType = typeof body?.contentType === "string" ? body.contentType : undefined;
   const url = await createPresignedUrl({ env, key, method: "PUT", expires, contentType });
@@ -194,6 +197,9 @@ async function handleTextPost(request, env) {
   if (!key.startsWith(`${TEXT_PREFIX}/`)) {
     key = `${TEXT_PREFIX}/${key}`;
   }
+  if (await env.R2_STORAGE.head(key)) {
+    return jsonError("文件已存在,请改名或先删除", 409);
+  }
   try {
     const customMetadata = {};
     if (password && password.trim()) {
@@ -228,6 +234,9 @@ async function handleProxyUpload(request, env) {
     return jsonError("`key` is required", 400);
   }
   key = ensureFileExtension(key, "bin");
+  if (await env.R2_STORAGE.head(key)) {
+    return jsonError("文件已存在,请改名或先删除", 409);
+  }
   if (!file || typeof file.arrayBuffer !== "function") {
     return jsonError("`file` is required", 400);
   }

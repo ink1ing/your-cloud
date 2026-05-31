@@ -60,8 +60,8 @@ npm run deploy   # 部署到 Cloudflare
 - `/delete` 对无密码文件的确认逻辑改为严格要求 `confirmed`(原逻辑任意非空值即可删除)。
 - `START_TIME` 在 Worker 顶层恒为 0,改为首次请求初始化,`/status` 的 uptime 现在正确。
 - `/list` 的 `limit` 增加 NaN/负数兜底;还原时修正了 ETag 末尾多余的 `}`。
+- **防覆盖**:`/signPut`、`/proxy/upload`、`/text` 上传到已存在的 key 时返回 409,不再静默覆盖、也不会清除原文件密码。
 
 仍待决策(会改变行为,未擅自改动):
 - 整套 API **无鉴权**,任何人知道域名即可 list/上传/下载/删除。如需私有,可加访问口令或 Cloudflare Access。
 - 文件密码为 1-6 位数字 + 固定盐(`InksPortalEncryption2024`),可被暴力枚举(约 110 万组合)且无限流,属轻量访问控制。
-- 上传会覆盖同名文件(含清除原密码),如有需要可加覆盖保护。
