@@ -12,6 +12,7 @@ binding = "ASSETS"
 [[r2_buckets]]
 binding = "R2_STORAGE"
 bucket_name = "inksportal"
+preview_bucket_name = "inksportal"  # 小项目,本地 --remote 调试复用同一桶
 
 # 注意:线上 Worker 已把下列 4 个值全部设为 secret(机密)。
 # 不要在此用 [vars] 重复定义,否则 deploy 会用明文覆盖同名 secret。
