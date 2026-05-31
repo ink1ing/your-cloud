@@ -413,49 +413,20 @@ tableBody.addEventListener('click', async (event) => {
 });
 
 async function handleDownload(key) {
+  const filename = (key || '').split('/').pop() || 'download';
   try {
-    // 首先检查文件是否需要密码
     const needsPassword = await checkIfPasswordRequired(key);
-
+    let password = null;
     if (needsPassword) {
-      const emojiPassword = await promptForPassword(key);
-      if (!emojiPassword) {
-        return; // 用户取消
-      }
-
-      if (preferProxy) {
-        await downloadViaProxy(key, emojiPassword);
-        return;
-      }
-
-      // 对于非代理下载，暂时用代理方式处理密码
-      await downloadViaProxy(key, emojiPassword);
-      return;
+      password = await promptForPassword(key);
+      if (!password) return; // 用户取消
     }
-
-    // 无密码文件，使用原有流程
-    if (preferProxy) {
-      await downloadViaProxy(key);
-      return;
-    }
-
-    setStatus(t('statusDownload', key));
-    const response = await apiPost('/signGet', { key });
-    if (!response?.url) {
-      throw new Error(t('missingDownloadUrl'));
-    }
-    openDownloadLink(response.url, key);
-    setStatus(t('statusDownloadDone'));
+    let url = `/proxy/download?key=${encodeURIComponent(key)}`;
+    if (password) url += `&password=${encodeURIComponent(password)}`;
+    await downloadWithProgress(url, filename);
   } catch (error) {
-    if (!preferProxy && shouldFallbackToProxy(error)) {
-      enableProxyFallback();
-      setStatus(t('statusProxyFallback'));
-      await downloadViaProxy(key);
-      return;
-    }
-
     console.error(error);
-    setStatus(t('statusError', error.message), true);
+    transferEnd(t('statusError', error.message), true);
   }
 }
 
@@ -585,10 +556,115 @@ function toggleBusy(isBusy) {
   }
 }
 
+// ---- 顶部进度/状态条 ----
+const topbar = document.querySelector('#topbar');
+const topbarFill = document.querySelector('#topbar-fill');
+const topbarLabel = document.querySelector('#topbar-label');
+let barTimer = null;
+let barTransfer = false; // 传输进行中:不被普通消息打断/自动隐藏
+let barStartTs = 0;
+
+function actLabel(kind) {
+  const zh = currentLang === 'zh';
+  return kind === 'ul' ? (zh ? '上传中' : 'Uploading') : (zh ? '下载中' : 'Downloading');
+}
+
 function setStatus(message, isError = false) {
-  if (!statusEl) return;
-  statusEl.textContent = message ?? '';
-  statusEl.classList.toggle('error', Boolean(isError));
+  if (!topbar) return;
+  if (barTransfer && !isError) return;
+  clearTimeout(barTimer);
+  if (!message) { topbar.hidden = true; return; }
+  topbar.hidden = false;
+  topbar.classList.remove('indeterminate');
+  topbar.classList.toggle('error', Boolean(isError));
+  topbarFill.style.width = '0%';
+  topbarLabel.textContent = message;
+  barTimer = setTimeout(() => { topbar.hidden = true; }, isError ? 4000 : 2500);
+}
+
+function transferStart(label) {
+  if (!topbar) return;
+  barTransfer = true;
+  barStartTs = performance.now();
+  clearTimeout(barTimer);
+  topbar.hidden = false;
+  topbar.classList.remove('error');
+  topbar.classList.add('indeterminate');
+  topbarFill.style.width = '0%';
+  topbarLabel.textContent = label || '';
+}
+
+function transferProgress(loaded, total, action, filename) {
+  if (!topbar) return;
+  const secs = (performance.now() - barStartTs) / 1000;
+  const speed = secs > 0 ? loaded / secs : 0;
+  let text = filename ? `${action} ${filename}` : action;
+  if (total > 0) {
+    const pct = Math.min(100, Math.round((loaded / total) * 100));
+    topbar.classList.remove('indeterminate');
+    topbarFill.style.width = `${pct}%`;
+    text += ` — ${pct}%`;
+  }
+  if (speed > 0) text += ` · ${formatBytes(speed)}/s`;
+  topbarLabel.textContent = text;
+}
+
+function transferEnd(message, isError = false) {
+  barTransfer = false;
+  if (!topbar) return;
+  clearTimeout(barTimer);
+  topbar.classList.remove('indeterminate');
+  topbar.classList.toggle('error', Boolean(isError));
+  topbarFill.style.width = '100%';
+  if (message) topbarLabel.textContent = message;
+  barTimer = setTimeout(() => { topbar.hidden = true; }, isError ? 4000 : 1400);
+}
+
+// XHR 上传以获得上传进度
+function xhrUpload(method, url, body, headers, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open(method, url);
+    for (const k in (headers || {})) xhr.setRequestHeader(k, headers[k]);
+    if (xhr.upload) {
+      xhr.upload.onprogress = (e) => onProgress && onProgress(e.loaded, e.lengthComputable ? e.total : 0);
+    }
+    xhr.onload = () => resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, text: xhr.responseText });
+    xhr.onerror = () => reject(new TypeError('Network request failed'));
+    xhr.send(body);
+  });
+}
+
+// 流式下载 + Blob 保存:强制下载所有格式,并显示进度/速度
+async function downloadWithProgress(url, filename) {
+  transferStart(`${actLabel('dl')} ${filename}`);
+  const response = await fetch(url);
+  if (!response.ok) {
+    let msg = String(response.status);
+    try { const d = await response.json(); if (d?.error) msg = d.error; } catch (e) { /* ignore */ }
+    throw new Error(msg);
+  }
+  const total = Number(response.headers.get('Content-Length')) || 0;
+  const reader = response.body.getReader();
+  const chunks = [];
+  let loaded = 0;
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    chunks.push(value);
+    loaded += value.length;
+    transferProgress(loaded, total, actLabel('dl'), filename);
+  }
+  const objectUrl = URL.createObjectURL(new Blob(chunks));
+  const anchor = document.createElement('a');
+  anchor.href = objectUrl;
+  anchor.download = filename;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
+  anchor.click();
+  requestAnimationFrame(() => anchor.remove());
+  setTimeout(() => URL.revokeObjectURL(objectUrl), 10000);
+  transferEnd(t('statusDownloadDone'));
 }
 
 function setTextStatus(message, isError = false) {
@@ -618,39 +694,40 @@ async function uploadFile(file, key) {
 
   // 后端可能返回了规范化的 key(例如添加了扩展名)
   const actualKey = signResponse.key || key;
+  const filename = (actualKey || '').split('/').pop() || 'file';
 
-  setStatus(t('statusPutting'));
+  transferStart(`${actLabel('ul')} ${filename}`);
 
   try {
-    const putResult = await fetch(signResponse.url, {
-      method: 'PUT',
-      body: file,
-      headers: {
-        'Content-Type': file.type || 'application/octet-stream',
-      },
-    });
+    const putResult = await xhrUpload(
+      'PUT',
+      signResponse.url,
+      file,
+      { 'Content-Type': file.type || 'application/octet-stream' },
+      (loaded, total) => transferProgress(loaded, total, actLabel('ul'), filename)
+    );
 
     if (!putResult.ok) {
-      throw new Error(`${putResult.status} ${putResult.statusText}`);
+      throw new Error(`${putResult.status}`);
     }
   } catch (error) {
     if (shouldFallbackToProxy(error)) {
       enableProxyFallback();
-      setStatus(t('statusProxyFallback'));
       await uploadViaProxy(file, actualKey);
       return;
     }
 
+    transferEnd(t('statusError', error.message), true);
     throw error;
   }
 
+  transferEnd(t('statusUploadSuccess'));
   await finishSuccessfulUpload();
 }
 
 async function uploadViaProxy(file, key) {
-  setStatus(t('statusProxyUpload'));
-
   const password = passwordInput?.value?.trim();
+  const filename = (key || '').split('/').pop() || 'file';
 
   const formData = new FormData();
   formData.set('key', key);
@@ -659,40 +736,32 @@ async function uploadViaProxy(file, key) {
     formData.set('password', password);
   }
 
-  const response = await fetch('/proxy/upload', {
-    method: 'POST',
-    body: formData,
-  });
+  transferStart(`${actLabel('ul')} ${filename}`);
+  const response = await xhrUpload(
+    'POST',
+    '/proxy/upload',
+    formData,
+    {},
+    (loaded, total) => transferProgress(loaded, total, actLabel('ul'), filename)
+  );
 
   if (!response.ok) {
     let message = t('proxyUploadError');
     try {
-      const data = await response.json();
-      if (data?.error) {
-        message = data.error;
-      }
-    } catch (error) {
-      console.warn('Failed to parse proxy upload error response', error);
-    }
+      const data = JSON.parse(response.text);
+      if (data?.error) message = data.error;
+    } catch (error) { /* ignore */ }
+    transferEnd(message, true);
     throw new Error(message);
   }
 
-  // 后端可能返回规范化的 key
+  // 后端可能返回规范化的 key / emoji 密码
   try {
-    const result = await response.json();
-    const actualKey = result?.key || key;
-    const emojiPassword = result?.emojiPassword;
+    const result = JSON.parse(response.text);
+    if (result?.emojiPassword) showEmojiPassword(result.emojiPassword);
+  } catch (error) { /* ignore */ }
 
-    console.log('File uploaded successfully with key:', actualKey);
-
-    // 如果有emoji密码，显示模态框
-    if (emojiPassword) {
-      showEmojiPassword(emojiPassword);
-    }
-  } catch (error) {
-    console.warn('Could not parse upload response', error);
-  }
-
+  transferEnd(t('statusUploadSuccess'));
   await finishSuccessfulUpload();
 }
 

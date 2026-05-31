@@ -53,6 +53,11 @@ npm run deploy   # 部署到 Cloudflare
 前端 `public/index.html` 与 `public/app.js` 已从线上 `https://portal.ink1ing.tech/` 取回。
 页面仅依赖外部 Google Fonts(Oxanium),API 调用使用根相对路径,本地 `wrangler dev` 与线上根域名均可直接联通。
 
+### 下载/上传体验
+- 顶部固定进度条(`#topbar`)在上传/下载时显示百分比与实时速度。
+- 下载统一走 `/proxy/download` 流式抓取 + Blob 保存,确保各种格式都"一步下载"而非新标签预览(代价:下载流量经过 Worker)。
+- 上传改用 XHR 以获取上传进度;直传签名 PUT 与代理上传两条路径都有进度。
+
 ## 注意事项 / 已知点
 
 已修复:

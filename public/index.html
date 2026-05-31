@@ -429,10 +429,69 @@
         padding: 0.75rem 0.6rem;
       }
     }
+    /* 顶部进度/状态条 */
+    #topbar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      z-index: 2000;
+      height: 30px;
+      background: #0a0a0a;
+      border-bottom: 1px solid #333333;
+      overflow: hidden;
+    }
+
+    #topbar[hidden] {
+      display: none;
+    }
+
+    #topbar-fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      width: 0;
+      background: rgba(56, 139, 253, 0.30);
+      transition: width 0.15s ease;
+    }
+
+    #topbar.error #topbar-fill {
+      background: rgba(248, 81, 73, 0.40);
+    }
+
+    #topbar.indeterminate #topbar-fill {
+      width: 35%;
+      animation: topbar-indet 1.1s ease-in-out infinite;
+    }
+
+    @keyframes topbar-indet {
+      0% { left: -35%; }
+      100% { left: 100%; }
+    }
+
+    #topbar-label {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: 0 1rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      color: #ffffff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   </style>
 </head>
 
 <body>
+  <div id="topbar" hidden>
+    <div id="topbar-fill"></div>
+    <div id="topbar-label"></div>
+  </div>
   <main>
     <header>
       <div>

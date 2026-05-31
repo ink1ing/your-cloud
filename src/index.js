@@ -295,10 +295,11 @@ async function handleProxyDownload(env, searchParams) {
     if (typeof object.size === "number") {
       passthroughHeaders.set("Content-Length", String(object.size));
     }
-    const contentDisposition = object.httpMetadata?.contentDisposition;
-    if (contentDisposition) {
-      passthroughHeaders.set("Content-Disposition", contentDisposition);
-    }
+    const downloadName = key.split("/").pop() || "download";
+    passthroughHeaders.set(
+      "Content-Disposition",
+      `attachment; filename*=UTF-8''${encodeURIComponent(downloadName)}`
+    );
     passthroughHeaders.set("Cache-Control", object.httpMetadata?.cacheControl || "private, max-age=0");
     passthroughHeaders.set("Access-Control-Allow-Origin", corsHeaders["Access-Control-Allow-Origin"]);
     passthroughHeaders.set("Access-Control-Expose-Headers", "Content-Length, Content-Type, Content-Disposition");
