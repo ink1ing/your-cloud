@@ -2,6 +2,9 @@
 
 基于 Cloudflare Worker + R2 的轻量网盘。后端源码已从线上打包产物还原为可维护结构。
 
+> **说明**:本仓库是作者**已经部署上线的示例实例**,在线演示见 https://portal.ink1ing.tech 。
+> 其中的配置(`wrangler.toml` 里的 account_id、桶名 `inksportal`、worker 名,以及前端 "Silas Portal" 品牌)都是该示例的真实值;你可以据此学习、克隆并改成自己的值后部署到你自己的 Cloudflare 账号(改哪些见下文「配置」)。
+
 ## 结构
 
 ```
