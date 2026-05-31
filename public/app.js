@@ -3,7 +3,6 @@ const keyInput = document.querySelector('#key-input');
 const passwordInput = document.querySelector('#password-input'); // 新增密码输入框
 const uploadBtn = document.querySelector('#upload-btn');
 const refreshBtn = document.querySelector('#refresh-btn');
-const statusEl = document.querySelector('#status');
 const tableBody = document.querySelector('#file-table-body');
 const fileCountEl = document.querySelector('#file-count');
 const dropZone = document.querySelector('#drop-zone');
@@ -176,8 +175,7 @@ const translations = {
 let serviceStartTime = null;
 
 let currentLang = 'en';
-const initialLanguage = (navigator.language || '').toLowerCase();
-let preferProxy = initialLanguage.startsWith('zh');
+let preferProxy = false;
 let proxyFallbackActivated = false;
 
 updateProxyIndicator();
@@ -546,17 +544,6 @@ async function loadList(forceRefresh = false) {
   }
 }
 
-function toggleBusy(isBusy) {
-  uploadBtn.disabled = isBusy;
-  if (refreshBtn) {
-    refreshBtn.disabled = isBusy;
-  }
-  const listRefreshBtn = document.querySelector('#list-refresh-btn');
-  if (listRefreshBtn) {
-    listRefreshBtn.disabled = isBusy;
-  }
-}
-
 // ---- 顶部进度/状态条 ----
 const topbar = document.querySelector('#topbar');
 const topbarFill = document.querySelector('#topbar-fill');
@@ -871,18 +858,6 @@ async function finishSuccessfulUpload() {
   await loadList(true);
 }
 
-async function downloadViaProxy(key, password = null) {
-  setStatus(t('statusProxyDownload', key));
-
-  let url = `/proxy/download?key=${encodeURIComponent(key)}`;
-  if (password) {
-    url += `&password=${encodeURIComponent(password)}`;
-  }
-
-  openDownloadLink(url, key);
-  setStatus(t('statusDownloadDone'));
-}
-
 function updateProxyIndicator() {
   document.documentElement.dataset.networkMode = preferProxy ? 'proxy' : 'direct';
 }
@@ -1009,32 +984,6 @@ function generateTextKey() {
   return `texts/${iso}.txt`;
 }
 
-function openDownloadLink(url, key) {
-  const isIos = /iP(?:ad|hone|od)/i.test(navigator.userAgent);
-  const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
-  const filename = (key || '').split('/').pop() || 'download';
-
-  if (isIos && isSafari) {
-    window.location.href = url;
-    return;
-  }
-
-  try {
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.target = '_blank';
-    anchor.rel = 'noopener';
-    anchor.download = filename;
-    anchor.style.display = 'none';
-    document.body.appendChild(anchor);
-    anchor.click();
-    requestAnimationFrame(() => anchor.remove());
-  } catch (error) {
-    console.warn('Falling back to window.open for download', error);
-    window.open(url, '_blank');
-  }
-}
-
 function updateKeyFromSelection() {
   if (fileInput.files.length === 0) return;
   const file = fileInput.files[0];
@@ -1046,9 +995,6 @@ function updateKeyFromSelection() {
 function switchLanguage(lang) {
   currentLang = lang;
 
-  if (!proxyFallbackActivated) {
-    preferProxy = lang === 'zh';
-  }
   updateProxyIndicator();
 
   langButtons.forEach((btn) => {
@@ -1126,6 +1072,15 @@ function renderTable(items) {
       const sizeCell = document.createElement('td');
       sizeCell.textContent = formatBytes(item.size);
 
+      const statusCell = document.createElement('td');
+      if (item.hasPassword === true) {
+        statusCell.textContent = '🔒';
+        statusCell.title = currentLang === 'zh' ? '已加密' : 'Password protected';
+      } else {
+        statusCell.textContent = '–';
+        statusCell.style.color = '#888888';
+      }
+
       const timeCell = document.createElement('td');
       timeCell.textContent = formatTime(item.lastModified);
 
@@ -1166,7 +1121,7 @@ function renderTable(items) {
 
       // 添加所有按钮到actionCell
       actionCell.append(...buttons);
-      tr.append(nameCell, sizeCell, timeCell, actionCell);
+      tr.append(nameCell, sizeCell, statusCell, timeCell, actionCell);
       fragment.appendChild(tr);
     });
 
@@ -1375,37 +1330,6 @@ async function downloadFromPreview() {
 window.closeTextPreviewModal = closeTextPreviewModal;
 window.copyTextContent = copyTextContent;
 window.downloadFromPreview = downloadFromPreview;
-
-// 异步更新文件状态
-async function updateFileStatus(keys) {
-  try {
-    const response = await apiPost('/file-status', { keys });
-
-    response.results.forEach(result => {
-      const statusCell = document.querySelector(`td[data-key="${result.key}"]`);
-      if (statusCell) {
-        if (result.error) {
-          statusCell.innerHTML = '<span style="color: #888888;">-</span>';
-        } else if (result.hasPassword) {
-          statusCell.innerHTML = '<span style="color: #ff9800;">🔒</span>';
-          statusCell.title = 'Locked with password';
-        } else {
-          statusCell.innerHTML = '<span style="color: #888888;">-</span>';
-          statusCell.title = 'No password';
-        }
-      }
-    });
-  } catch (error) {
-    console.error('Failed to update file status:', error);
-    // 如果获取状态失败，显示默认状态
-    keys.forEach(key => {
-      const statusCell = document.querySelector(`td[data-key="${key}"]`);
-      if (statusCell) {
-        statusCell.innerHTML = '<span style="color: #888888;">-</span>';
-      }
-    });
-  }
-}
 
 // 检查文件是否需要密码
 async function checkIfPasswordRequired(key) {

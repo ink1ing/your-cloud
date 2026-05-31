@@ -129,13 +129,13 @@ async function handleList(env, searchParams) {
       prefix: prefix ? sanitizeKey(prefix) : undefined,
       limit,
       cursor: cursor || undefined,
+      include: ["customMetadata"],
     });
     const items = (result.objects ?? []).map((object) => ({
       key: object.key,
       size: object.size,
       lastModified: object.uploaded ? object.uploaded.toISOString() : null,
-      // 暂时设置为 unknown,前端会异步获取真实状态
-      hasPassword: "unknown",
+      hasPassword: !!object.customMetadata?.passwordHash,
     }));
     const responseData = {
       items,
@@ -240,7 +240,6 @@ async function handleProxyUpload(request, env) {
   if (!file || typeof file.arrayBuffer !== "function") {
     return jsonError("`file` is required", 400);
   }
-  const arrayBuffer = await file.arrayBuffer();
   const contentType = typeof file.type === "string" && file.type ? file.type : "application/octet-stream";
   try {
     const customMetadata = {};
@@ -250,7 +249,7 @@ async function handleProxyUpload(request, env) {
       }
       customMetadata.passwordHash = await generatePasswordHash(password.trim());
     }
-    await env.R2_STORAGE.put(key, arrayBuffer, {
+    await env.R2_STORAGE.put(key, file, {
       httpMetadata: { contentType },
       customMetadata,
     });

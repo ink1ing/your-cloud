@@ -66,6 +66,11 @@ npm run deploy   # 部署到 Cloudflare
 - `START_TIME` 在 Worker 顶层恒为 0,改为首次请求初始化,`/status` 的 uptime 现在正确。
 - `/list` 的 `limit` 增加 NaN/负数兜底;还原时修正了 ETag 末尾多余的 `}`。
 - **防覆盖**:`/signPut`、`/proxy/upload`、`/text` 上传到已存在的 key 时返回 409,不再静默覆盖、也不会清除原文件密码。
+- **密码锁标识**:`/list` 改为 `include: ["customMetadata"]` 直接返回 `hasPassword` 布尔,列表"Status"列直接渲染 🔒(消除了原本每次刷新 N 次 HEAD 的隐患)。
+- **上传性能**:代理上传改为直接 `put(key, file)`(Blob 流式),不再 `arrayBuffer()` 全量进内存;上传默认走直传签名 PUT(失败自动回退代理),解除"中文=强制代理"耦合。R2 桶 CORS 已允许浏览器 `PUT`。
+- **死代码清理**:移除 `openDownloadLink`、`downloadViaProxy`、`toggleBusy`、`updateFileStatus` 及失效的 `#status` 引用。
+
+下载仍走 `/proxy/download` 流式抓取 + Blob 保存(为保留进度条/速度显示),代价是经 Worker 流量、无 Range、客户端整块入内存。
 
 仍待决策(会改变行为,未擅自改动):
 - 整套 API **无鉴权**,任何人知道域名即可 list/上传/下载/删除。如需私有,可加访问口令或 Cloudflare Access。
