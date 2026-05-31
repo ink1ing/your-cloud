@@ -7,7 +7,8 @@ const DEFAULT_EXPIRY_SECONDS = 3600;
 const MAX_EXPIRY_SECONDS = 7 * 24 * 60 * 60;
 const UNSIGNED_PAYLOAD = "UNSIGNED-PAYLOAD";
 const TEXT_PREFIX = "texts";
-const START_TIME = Date.now();
+// Workers 顶层 Date.now() 恒为 0,改为首次请求时初始化
+let START_TIME = 0;
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -18,6 +19,7 @@ const corsHeaders = {
 // ===== Worker 入口 =====
 export default {
   async fetch(request, env, ctx) {
+    if (!START_TIME) START_TIME = Date.now();
     const url = new URL(request.url);
     let pathname = url.pathname;
     if (pathname.startsWith("/portal")) {
@@ -104,6 +106,12 @@ async function handleSignGet(request, env) {
   if (!key) {
     return jsonError("`key` is required", 400);
   }
+  // 防绕过:受密码保护的文件必须提供正确密码,才能拿到预签名下载链接
+  const object = await env.R2_STORAGE.head(key);
+  const storedHash = object?.customMetadata?.passwordHash;
+  if (storedHash && !(await verifyPasswordHash(body?.password || "", storedHash))) {
+    return jsonError("密码错误或文件需要密码", 403);
+  }
   const expires = normalizeExpiry(body?.expires);
   const url = await createPresignedUrl({ env, key, method: "GET", expires });
   return jsonResponse({ url, expires });
@@ -112,7 +120,7 @@ async function handleSignGet(request, env) {
 async function handleList(env, searchParams) {
   try {
     const prefix = searchParams.get("prefix");
-    const limit = Math.min(parseInt(searchParams.get("limit") || "1000"), 1000);
+    const limit = Math.max(1, Math.min(parseInt(searchParams.get("limit"), 10) || 1000, 1000));
     const cursor = searchParams.get("cursor");
     const result = await env.R2_STORAGE.list({
       prefix: prefix ? sanitizeKey(prefix) : undefined,
@@ -159,7 +167,7 @@ async function handleDelete(request, env) {
       if (!isPasswordValid) {
         return jsonError("密码错误或文件需要密码", 403);
       }
-    } else if (!emojiPassword || (emojiPassword.trim() !== "confirmed" && emojiPassword.trim() === "")) {
+    } else if (emojiPassword?.trim() !== "confirmed") {
       return jsonError("删除文件需要密码确认", 403);
     }
     await env.R2_STORAGE.delete(key);
