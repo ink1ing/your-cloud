@@ -366,15 +366,7 @@ uploadBtn.addEventListener('click', async () => {
     return;
   }
 
-  toggleBusy(true);
-  try {
-    await uploadFile(file, key);
-  } catch (error) {
-    console.error(error);
-    setStatus(t('statusError', error.message), true);
-  } finally {
-    toggleBusy(false);
-  }
+  enqueueUpload({ file, key, password: passwordInput?.value?.trim() || null });
 });
 
 // refreshBtn 可能已被移除，添加检查
@@ -624,6 +616,7 @@ function transferEnd(message, isError = false) {
 function xhrUpload(method, url, body, headers, onProgress) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
+    currentUploadXhr = xhr;
     xhr.open(method, url);
     for (const k in (headers || {})) xhr.setRequestHeader(k, headers[k]);
     if (xhr.upload) {
@@ -631,6 +624,7 @@ function xhrUpload(method, url, body, headers, onProgress) {
     }
     xhr.onload = () => resolve({ status: xhr.status, ok: xhr.status >= 200 && xhr.status < 300, text: xhr.responseText });
     xhr.onerror = () => reject(new TypeError('Network request failed'));
+    xhr.onabort = () => reject(new DOMException('Upload cancelled', 'AbortError'));
     xhr.send(body);
   });
 }
@@ -673,12 +667,77 @@ function setTextStatus(message, isError = false) {
   textStatusEl.classList.toggle('error', Boolean(isError));
 }
 
-async function uploadFile(file, key) {
-  const password = passwordInput?.value?.trim();
+// ---- 上传队列 + 取消/排队 ----
+const topbarActions = document.querySelector('#topbar-actions');
+const btnQueue = document.querySelector('#btn-queue');
+const btnCancel = document.querySelector('#btn-cancel');
+let uploadQueue = [];
+let isUploading = false;
+let currentUploadXhr = null;
+let queueUnlocked = false;
 
+function setUploadActions(show) {
+  if (!topbarActions) return;
+  if (show) {
+    const zh = currentLang === 'zh';
+    if (btnQueue) { btnQueue.textContent = zh ? '排队' : 'Queue'; btnQueue.disabled = false; }
+    if (btnCancel) btnCancel.textContent = zh ? '取消' : 'Cancel';
+  }
+  topbarActions.hidden = !show;
+}
+
+function enqueueUpload(job) {
+  uploadQueue.push(job);
+  processQueue();
+}
+
+async function processQueue() {
+  if (isUploading) return;
+  const job = uploadQueue.shift();
+  if (!job) return;
+  isUploading = true;
+  if (!queueUnlocked) toggleBusy(true);
+  setUploadActions(true);
+  try {
+    await uploadFile(job.file, job.key, job.password);
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      transferEnd(currentLang === 'zh' ? '已取消' : 'Cancelled');
+    } else {
+      console.error(error);
+      transferEnd(t('statusError', error.message), true);
+    }
+  } finally {
+    isUploading = false;
+    currentUploadXhr = null;
+    if (uploadQueue.length > 0) {
+      processQueue();
+    } else {
+      setUploadActions(false);
+      queueUnlocked = false;
+      toggleBusy(false);
+    }
+  }
+}
+
+function cancelCurrentUpload() {
+  uploadQueue = [];
+  if (currentUploadXhr) currentUploadXhr.abort();
+}
+
+if (btnCancel) btnCancel.addEventListener('click', cancelCurrentUpload);
+if (btnQueue) {
+  btnQueue.addEventListener('click', () => {
+    queueUnlocked = true;
+    toggleBusy(false);
+    btnQueue.disabled = true;
+  });
+}
+
+async function uploadFile(file, key, password) {
   // 如果有密码，必须使用代理上传
   if (password || preferProxy) {
-    await uploadViaProxy(file, key);
+    await uploadViaProxy(file, key, password);
     return;
   }
 
@@ -711,9 +770,10 @@ async function uploadFile(file, key) {
       throw new Error(`${putResult.status}`);
     }
   } catch (error) {
+    if (error?.name === 'AbortError') throw error;
     if (shouldFallbackToProxy(error)) {
       enableProxyFallback();
-      await uploadViaProxy(file, actualKey);
+      await uploadViaProxy(file, actualKey, password);
       return;
     }
 
@@ -725,8 +785,7 @@ async function uploadFile(file, key) {
   await finishSuccessfulUpload();
 }
 
-async function uploadViaProxy(file, key) {
-  const password = passwordInput?.value?.trim();
+async function uploadViaProxy(file, key, password) {
   const filename = (key || '').split('/').pop() || 'file';
 
   const formData = new FormData();
@@ -781,8 +840,10 @@ function enableProxyFallback() {
 
 async function finishSuccessfulUpload() {
   setStatus(t('statusUploadSuccess'));
-  fileInput.value = '';
-  keyInput.value = '';
+  if (!queueUnlocked) {
+    fileInput.value = '';
+    keyInput.value = '';
+  }
   // 清除缓存并强制刷新文件列表
   fileListCache = null;
   cacheTimestamp = 0;

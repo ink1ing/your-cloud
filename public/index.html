@@ -484,6 +484,45 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    #topbar-actions {
+      position: absolute;
+      top: 0;
+      right: 0;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0 0.6rem;
+      z-index: 2;
+    }
+
+    #topbar-actions[hidden] {
+      display: none;
+    }
+
+    #topbar-actions button {
+      padding: 0.18rem 0.7rem;
+      font-size: 0.72rem;
+      font-weight: 700;
+      border-radius: 6px;
+      background: #222222;
+      color: #ffffff;
+      border: 1px solid #444444;
+    }
+
+    #topbar-actions button:not(:disabled):hover {
+      transform: none;
+      box-shadow: none;
+    }
+
+    #topbar-actions button:disabled {
+      opacity: 0.5;
+    }
+
+    #btn-cancel {
+      background: #5a1f1f;
+      border-color: #7a2a2a;
+    }
   </style>
 </head>
 
@@ -491,6 +530,10 @@
   <div id="topbar" hidden>
     <div id="topbar-fill"></div>
     <div id="topbar-label"></div>
+    <div id="topbar-actions" hidden>
+      <button id="btn-queue" type="button">排队</button>
+      <button id="btn-cancel" type="button">取消</button>
+    </div>
   </div>
   <main>
     <header>
