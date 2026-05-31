@@ -523,6 +523,56 @@
       background: #5a1f1f;
       border-color: #7a2a2a;
     }
+
+    #queue-list {
+      position: fixed;
+      top: 30px;
+      left: 0;
+      right: 0;
+      z-index: 1999;
+      max-height: 40vh;
+      overflow-y: auto;
+      background: #0a0a0a;
+      border-bottom: 1px solid #333333;
+    }
+
+    #queue-list[hidden] {
+      display: none;
+    }
+
+    .queue-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.6rem;
+      padding: 0.3rem 0.8rem;
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: #cccccc;
+      border-top: 1px solid #1a1a1a;
+    }
+
+    .queue-item .qname {
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .queue-item button {
+      flex: none;
+      padding: 0.05rem 0.5rem;
+      font-size: 0.8rem;
+      font-weight: 700;
+      background: #2a2a2a;
+      color: #ffffff;
+      border: 1px solid #444444;
+      border-radius: 5px;
+    }
+
+    .queue-item button:not(:disabled):hover {
+      transform: none;
+      box-shadow: none;
+    }
   </style>
 </head>
 
@@ -531,10 +581,10 @@
     <div id="topbar-fill"></div>
     <div id="topbar-label"></div>
     <div id="topbar-actions" hidden>
-      <button id="btn-queue" type="button">排队</button>
-      <button id="btn-cancel" type="button">取消</button>
+      <button id="btn-cancel" type="button" title="取消当前上传">✕</button>
     </div>
   </div>
+  <div id="queue-list" hidden></div>
   <main>
     <header>
       <div>

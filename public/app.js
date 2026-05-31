@@ -367,6 +367,8 @@ uploadBtn.addEventListener('click', async () => {
   }
 
   enqueueUpload({ file, key, password: passwordInput?.value?.trim() || null });
+  fileInput.value = '';
+  keyInput.value = '';
 });
 
 // refreshBtn 可能已被移除，添加检查
@@ -669,34 +671,60 @@ function setTextStatus(message, isError = false) {
 
 // ---- 上传队列 + 取消/排队 ----
 const topbarActions = document.querySelector('#topbar-actions');
-const btnQueue = document.querySelector('#btn-queue');
 const btnCancel = document.querySelector('#btn-cancel');
+const queueList = document.querySelector('#queue-list');
 let uploadQueue = [];
 let isUploading = false;
 let currentUploadXhr = null;
-let queueUnlocked = false;
+let jobSeq = 0;
 
 function setUploadActions(show) {
-  if (!topbarActions) return;
-  if (show) {
-    const zh = currentLang === 'zh';
-    if (btnQueue) { btnQueue.textContent = zh ? '排队' : 'Queue'; btnQueue.disabled = false; }
-    if (btnCancel) btnCancel.textContent = zh ? '取消' : 'Cancel';
+  if (topbarActions) topbarActions.hidden = !show;
+}
+
+function renderQueue() {
+  if (!queueList) return;
+  queueList.innerHTML = '';
+  if (uploadQueue.length === 0) {
+    queueList.hidden = true;
+    return;
   }
-  topbarActions.hidden = !show;
+  queueList.hidden = false;
+  const zh = currentLang === 'zh';
+  uploadQueue.forEach((job) => {
+    const row = document.createElement('div');
+    row.className = 'queue-item';
+    const name = document.createElement('span');
+    name.className = 'qname';
+    name.textContent = (job.key || '').split('/').pop() || 'file';
+    const remove = document.createElement('button');
+    remove.type = 'button';
+    remove.textContent = '✕';
+    remove.title = zh ? '移除' : 'Remove';
+    remove.addEventListener('click', () => removeJob(job.id));
+    row.append(name, remove);
+    queueList.appendChild(row);
+  });
+}
+
+function removeJob(id) {
+  uploadQueue = uploadQueue.filter((j) => j.id !== id);
+  renderQueue();
 }
 
 function enqueueUpload(job) {
+  job.id = ++jobSeq;
   uploadQueue.push(job);
+  renderQueue();
   processQueue();
 }
 
 async function processQueue() {
   if (isUploading) return;
   const job = uploadQueue.shift();
-  if (!job) return;
+  if (!job) { renderQueue(); return; }
   isUploading = true;
-  if (!queueUnlocked) toggleBusy(true);
+  renderQueue();
   setUploadActions(true);
   try {
     await uploadFile(job.file, job.key, job.password);
@@ -714,25 +742,15 @@ async function processQueue() {
       processQueue();
     } else {
       setUploadActions(false);
-      queueUnlocked = false;
-      toggleBusy(false);
     }
   }
 }
 
-function cancelCurrentUpload() {
-  uploadQueue = [];
+function cancelActiveUpload() {
   if (currentUploadXhr) currentUploadXhr.abort();
 }
 
-if (btnCancel) btnCancel.addEventListener('click', cancelCurrentUpload);
-if (btnQueue) {
-  btnQueue.addEventListener('click', () => {
-    queueUnlocked = true;
-    toggleBusy(false);
-    btnQueue.disabled = true;
-  });
-}
+if (btnCancel) btnCancel.addEventListener('click', cancelActiveUpload);
 
 async function uploadFile(file, key, password) {
   // 如果有密码，必须使用代理上传
@@ -840,10 +858,6 @@ function enableProxyFallback() {
 
 async function finishSuccessfulUpload() {
   setStatus(t('statusUploadSuccess'));
-  if (!queueUnlocked) {
-    fileInput.value = '';
-    keyInput.value = '';
-  }
   // 清除缓存并强制刷新文件列表
   fileListCache = null;
   cacheTimestamp = 0;
