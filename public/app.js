@@ -521,6 +521,13 @@ async function loadList(forceRefresh = false) {
 
     renderTable(items);
 
+    // 记录上次刷新时间(北京时间 HH:MM)
+    const lastRefreshEl = document.querySelector('#last-refresh');
+    if (lastRefreshEl) {
+      const time = new Date().toLocaleTimeString('zh-CN', { timeZone: 'Asia/Shanghai', hour: '2-digit', minute: '2-digit', hour12: false });
+      lastRefreshEl.textContent = (currentLang === 'zh' ? '更新于 ' : 'Updated ') + time;
+    }
+
     // 恢复按钮状态
     if (listRefreshBtn) {
       listRefreshBtn.disabled = false;
