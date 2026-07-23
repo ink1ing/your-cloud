@@ -2,7 +2,7 @@
 
 基于 Cloudflare Worker + R2 的轻量网盘。后端源码已从线上打包产物还原为可维护结构。
 
-> **说明**:本仓库是作者**已经部署上线的示例实例**,在线演示见 https://portal.ink1ing.tech 。
+> **说明**:本仓库是作者**已经部署上线的示例实例**,在线演示见 https://portal.shangdian.me 。
 > 其中的配置(`wrangler.toml` 里的 account_id、桶名 `inksportal`、worker 名,以及前端 "Silas Portal" 品牌)都是该示例的真实值;你可以据此学习、克隆并改成自己的值后部署到你自己的 Cloudflare 账号(改哪些见下文「配置」)。
 
 ## 结构
@@ -53,7 +53,7 @@ npm run deploy   # 部署到 Cloudflare
 
 ## 前端来源
 
-前端 `public/index.html` 与 `public/app.js` 已从线上 `https://portal.ink1ing.tech/` 取回。
+前端 `public/index.html` 与 `public/app.js` 已从线上 `https://portal.shangdian.me/` 取回。
 页面仅依赖外部 Google Fonts(Oxanium),API 调用使用根相对路径,本地 `wrangler dev` 与线上根域名均可直接联通。
 
 ### 下载/上传体验
